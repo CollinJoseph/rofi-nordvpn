@@ -19,8 +19,8 @@ echoexit() {
 type nordvpn >/dev/null || echoexit "'nordvpn' not found."
 type rofi >/dev/null || echoexit "'rofi' not found."
 
-completion_to_lines() {
-    tr '\t' '\n' | sed '/^[[:space:]]*$/d'
+clean_output() {
+    tr -s '\t' '\n' | sed 's/\.*\|\-*\|[[:space:]]//g'
 }
 
 menu() {
@@ -31,9 +31,9 @@ menu() {
     line_count="$(printf "%s" "$stdin" | wc -l)"
 
     if [ "$line_count" -lt 5 ]; then
-        printf "%s" "$stdin" | sort | rofi -dmenu -i -p "NordVPN" -no-custom -l "$((line_count + 1))"
+        printf "%s" "$stdin" | rofi -dmenu -i -p "NordVPN" -no-custom -l "$((line_count + 1))"
     else
-        printf "%s" "$stdin" | sort | rofi -dmenu -i -p "NordVPN" -no-custom
+        printf "%s" "$stdin" | rofi -dmenu -i -p "NordVPN" -no-custom
     fi
 }
 
@@ -57,22 +57,47 @@ init_menu() {
 # nordvpn connect menu.
 connect() {
     local choices
-    choices="default\ncountries\ncities\np2p\nonion"
+    choices="fastest\ncountries\ncities\ngroups"
     printf "%b" "$choices" | menu
 }
 
 # Country selection menu.
 countries() {
-    nordvpn connect --generate-bash-completion | completion_to_lines | menu
+    country=`(echo "Fastest"; (nordvpn countries | clean_output)) | menu`
+ echo "${country}"
+}
+
+connect_to_country() {
+    local country
+    country="$(countries)"
+    if [[ "${country}" == "Fastest" ]]; then
+        nordvpn connect
+    else
+        [ -n "${country}" ] && nordvpn connect "$country"
+    fi
 }
 
 # City selection menu.
-# Arg:
+# Arg :
 #   $1: a country
 cities() {
-    nordvpn connect "$1" --generate-bash-completion | completion_to_lines | menu
+    city=`(echo "Fastest"; (nordvpn cities "$1" | clean_output)) | menu`
+    echo "${city}"
 }
 
+connect_to_city() {
+    country="$(countries)"
+    if [[ "${country}" == "Fastest" ]]; then
+        nordvpn connect
+    else
+        [ -n "$country" ] && city="$(cities "$country")"
+        if [[ "${city}" == "Fastest" ]]; then
+            [ -n "${country}" ] && nordvpn connect "$country"
+        else
+            [ -n "$city" ] && nordvpn connect "$country" "$city"
+        fi
+    fi
+}
 # Print the vpn status, for status bars.
 status() {
     local status
@@ -117,40 +142,33 @@ while getopts ":hs" opt; do
     esac
 done
 
+
 case "$(init_menu)" in
-"connect")
-    case $(connect) in
-    "default")
-        nordvpn connect
+    "connect")
+          case $(connect) in
+              "fastest")
+                  nordvpn connect
+                  ;;
+              "countries")
+                  connect_to_country
+                  ;;
+              "cities")
+                  connect_to_city
+                  ;;
+              "groups")
+                  nordvpn connect p2p
+                  ;;
+              *) ;;
+          esac
         ;;
-    "countries")
-        country="$(countries)"
-        [ -n "$country" ] && nordvpn connect "$country"
+    "disconnect")
+        nordvpn disconnect
         ;;
-    "cities")
-        country="$(countries)"
-        [ -n "$country" ] && city="$(cities "$country")"
-        [ -n "$city" ] && nordvpn connect "$country" "$city"
+    "status")
+        vpn_status
         ;;
-    "p2p")
-        nordvpn connect p2p
-        ;;
-    "onion")
-        nordvpn connect onion_over_vpn
+    "settings")
+        settings
         ;;
     *) ;;
-
-    esac
-    ;;
-"disconnect")
-    nordvpn disconnect
-    ;;
-"status")
-    vpn_status
-    ;;
-"settings")
-    settings
-    ;;
-*) ;;
-
 esac

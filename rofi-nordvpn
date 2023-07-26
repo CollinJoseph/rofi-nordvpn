@@ -50,14 +50,14 @@ Usage:
 # Initial menu.
 init_menu() {
     local choices
-    choices="connect\ndisconnect\nstatus\nsettings"
+    choices="Connect\nDisconnect\nStatus\nSettings"
     printf "%b" "$choices" | menu
 }
 
 # nordvpn connect menu.
 connect() {
     local choices
-    choices="fastest\ncountries\ncities\ngroups"
+    choices="Fastest\nCountries\nCities\nGroups"
     printf "%b" "$choices" | menu
 }
 
@@ -144,30 +144,30 @@ done
 
 
 case "$(init_menu)" in
-    "connect")
+    "Connect")
           case $(connect) in
-              "fastest")
+              "Fastest")
                   nordvpn connect
                   ;;
-              "countries")
+              "Countries")
                   connect_to_country
                   ;;
-              "cities")
+              "Cities")
                   connect_to_city
                   ;;
-              "groups")
+              "Groups")
                   nordvpn connect p2p
                   ;;
               *) ;;
           esac
         ;;
-    "disconnect")
+    "Disconnect")
         nordvpn disconnect
         ;;
-    "status")
+    "Status")
         vpn_status
         ;;
-    "settings")
+    "Settings")
         settings
         ;;
     *) ;;
